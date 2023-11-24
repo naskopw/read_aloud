@@ -1,13 +1,13 @@
 mod ffi;
-mod lang;
+mod voices;
 
-use std::{io::Write, path::PathBuf};
+use std::{io::Write, path::Path};
 use thiserror::Error;
 use tungstenite::connect;
 use url::Url;
 
 pub use ffi::text_to_speech;
-pub use lang::Voice;
+pub use voices::Voice;
 
 // TODO: Add proper error handling
 
@@ -67,7 +67,12 @@ fn tts_request(text: String, voice: Voice) -> String {
     r
 }
 
-fn generate(text: &str, voice: Voice, f: PathBuf) -> Result<()> {
+fn sanitize_text(text: &str) -> String {
+    text.replace("<", "").replace(">", "")
+}
+
+pub fn generate(text: &str, voice: Voice, f: &Path) -> Result<()> {
+    let text = sanitize_text(text);
     let (mut socket, _) = connect(build_url())?;
 
     let f = std::fs::File::create(f)?;
