@@ -218,9 +218,25 @@ pub enum Voice {
   #[allow(non_camel_case_types)]
   en_GB_ThomasNeural,
   #[allow(non_camel_case_types)]
-  en_US_AriaNeural,
+  en_US_AvaMultilingualNeural,
+  #[allow(non_camel_case_types)]
+  en_US_AndrewMultilingualNeural,
+  #[allow(non_camel_case_types)]
+  en_US_EmmaMultilingualNeural,
+  #[allow(non_camel_case_types)]
+  en_US_BrianMultilingualNeural,
+  #[allow(non_camel_case_types)]
+  en_US_AvaNeural,
+  #[allow(non_camel_case_types)]
+  en_US_AndrewNeural,
+  #[allow(non_camel_case_types)]
+  en_US_EmmaNeural,
+  #[allow(non_camel_case_types)]
+  en_US_BrianNeural,
   #[allow(non_camel_case_types)]
   en_US_AnaNeural,
+  #[allow(non_camel_case_types)]
+  en_US_AriaNeural,
   #[allow(non_camel_case_types)]
   en_US_ChristopherNeural,
   #[allow(non_camel_case_types)]
@@ -252,11 +268,17 @@ pub enum Voice {
   #[allow(non_camel_case_types)]
   fr_BE_GerardNeural,
   #[allow(non_camel_case_types)]
+  fr_CA_ThierryNeural,
+  #[allow(non_camel_case_types)]
   fr_CA_AntoineNeural,
   #[allow(non_camel_case_types)]
   fr_CA_JeanNeural,
   #[allow(non_camel_case_types)]
   fr_CA_SylvieNeural,
+  #[allow(non_camel_case_types)]
+  fr_FR_VivienneMultilingualNeural,
+  #[allow(non_camel_case_types)]
+  fr_FR_RemyMultilingualNeural,
   #[allow(non_camel_case_types)]
   fr_FR_DeniseNeural,
   #[allow(non_camel_case_types)]
@@ -279,6 +301,10 @@ pub enum Voice {
   de_AT_IngridNeural,
   #[allow(non_camel_case_types)]
   de_AT_JonasNeural,
+  #[allow(non_camel_case_types)]
+  de_DE_SeraphinaMultilingualNeural,
+  #[allow(non_camel_case_types)]
+  de_DE_FlorianMultilingualNeural,
   #[allow(non_camel_case_types)]
   de_DE_AmalaNeural,
   #[allow(non_camel_case_types)]
@@ -324,6 +350,8 @@ pub enum Voice {
   #[allow(non_camel_case_types)]
   ga_IE_OrlaNeural,
   #[allow(non_camel_case_types)]
+  it_IT_GiuseppeNeural,
+  #[allow(non_camel_case_types)]
   it_IT_DiegoNeural,
   #[allow(non_camel_case_types)]
   it_IT_ElsaNeural,
@@ -349,6 +377,8 @@ pub enum Voice {
   km_KH_PisethNeural,
   #[allow(non_camel_case_types)]
   km_KH_SreymomNeural,
+  #[allow(non_camel_case_types)]
+  ko_KR_HyunsuNeural,
   #[allow(non_camel_case_types)]
   ko_KR_InJoonNeural,
   #[allow(non_camel_case_types)]
@@ -410,6 +440,8 @@ pub enum Voice {
   #[allow(non_camel_case_types)]
   pl_PL_ZofiaNeural,
   #[allow(non_camel_case_types)]
+  pt_BR_ThalitaNeural,
+  #[allow(non_camel_case_types)]
   pt_BR_AntonioNeural,
   #[allow(non_camel_case_types)]
   pt_BR_FranciscaNeural,
@@ -457,6 +489,8 @@ pub enum Voice {
   es_CL_CatalinaNeural,
   #[allow(non_camel_case_types)]
   es_CL_LorenzoNeural,
+  #[allow(non_camel_case_types)]
+  es_ES_XimenaNeural,
   #[allow(non_camel_case_types)]
   es_CO_GonzaloNeural,
   #[allow(non_camel_case_types)]
@@ -717,8 +751,16 @@ impl From<Voice> for &str {
            Voice::en_GB_RyanNeural => {"Microsoft Server Speech Text to Speech Voice (en-GB, RyanNeural)"}
            Voice::en_GB_SoniaNeural => {"Microsoft Server Speech Text to Speech Voice (en-GB, SoniaNeural)"}
            Voice::en_GB_ThomasNeural => {"Microsoft Server Speech Text to Speech Voice (en-GB, ThomasNeural)"}
-           Voice::en_US_AriaNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)"}
+           Voice::en_US_AvaMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AvaMultilingualNeural)"}
+           Voice::en_US_AndrewMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AndrewMultilingualNeural)"}
+           Voice::en_US_EmmaMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, EmmaMultilingualNeural)"}
+           Voice::en_US_BrianMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, BrianMultilingualNeural)"}
+           Voice::en_US_AvaNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AvaNeural)"}
+           Voice::en_US_AndrewNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AndrewNeural)"}
+           Voice::en_US_EmmaNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, EmmaNeural)"}
+           Voice::en_US_BrianNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, BrianNeural)"}
            Voice::en_US_AnaNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AnaNeural)"}
+           Voice::en_US_AriaNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, AriaNeural)"}
            Voice::en_US_ChristopherNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, ChristopherNeural)"}
            Voice::en_US_EricNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, EricNeural)"}
            Voice::en_US_GuyNeural => {"Microsoft Server Speech Text to Speech Voice (en-US, GuyNeural)"}
@@ -734,9 +776,12 @@ impl From<Voice> for &str {
            Voice::fi_FI_NooraNeural => {"Microsoft Server Speech Text to Speech Voice (fi-FI, NooraNeural)"}
            Voice::fr_BE_CharlineNeural => {"Microsoft Server Speech Text to Speech Voice (fr-BE, CharlineNeural)"}
            Voice::fr_BE_GerardNeural => {"Microsoft Server Speech Text to Speech Voice (fr-BE, GerardNeural)"}
+           Voice::fr_CA_ThierryNeural => {"Microsoft Server Speech Text to Speech Voice (fr-CA, ThierryNeural)"}
            Voice::fr_CA_AntoineNeural => {"Microsoft Server Speech Text to Speech Voice (fr-CA, AntoineNeural)"}
            Voice::fr_CA_JeanNeural => {"Microsoft Server Speech Text to Speech Voice (fr-CA, JeanNeural)"}
            Voice::fr_CA_SylvieNeural => {"Microsoft Server Speech Text to Speech Voice (fr-CA, SylvieNeural)"}
+           Voice::fr_FR_VivienneMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (fr-FR, VivienneMultilingualNeural)"}
+           Voice::fr_FR_RemyMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (fr-FR, RemyMultilingualNeural)"}
            Voice::fr_FR_DeniseNeural => {"Microsoft Server Speech Text to Speech Voice (fr-FR, DeniseNeural)"}
            Voice::fr_FR_EloiseNeural => {"Microsoft Server Speech Text to Speech Voice (fr-FR, EloiseNeural)"}
            Voice::fr_FR_HenriNeural => {"Microsoft Server Speech Text to Speech Voice (fr-FR, HenriNeural)"}
@@ -748,6 +793,8 @@ impl From<Voice> for &str {
            Voice::ka_GE_GiorgiNeural => {"Microsoft Server Speech Text to Speech Voice (ka-GE, GiorgiNeural)"}
            Voice::de_AT_IngridNeural => {"Microsoft Server Speech Text to Speech Voice (de-AT, IngridNeural)"}
            Voice::de_AT_JonasNeural => {"Microsoft Server Speech Text to Speech Voice (de-AT, JonasNeural)"}
+           Voice::de_DE_SeraphinaMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (de-DE, SeraphinaMultilingualNeural)"}
+           Voice::de_DE_FlorianMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (de-DE, FlorianMultilingualNeural)"}
            Voice::de_DE_AmalaNeural => {"Microsoft Server Speech Text to Speech Voice (de-DE, AmalaNeural)"}
            Voice::de_DE_ConradNeural => {"Microsoft Server Speech Text to Speech Voice (de-DE, ConradNeural)"}
            Voice::de_DE_KatjaNeural => {"Microsoft Server Speech Text to Speech Voice (de-DE, KatjaNeural)"}
@@ -770,6 +817,7 @@ impl From<Voice> for &str {
            Voice::id_ID_GadisNeural => {"Microsoft Server Speech Text to Speech Voice (id-ID, GadisNeural)"}
            Voice::ga_IE_ColmNeural => {"Microsoft Server Speech Text to Speech Voice (ga-IE, ColmNeural)"}
            Voice::ga_IE_OrlaNeural => {"Microsoft Server Speech Text to Speech Voice (ga-IE, OrlaNeural)"}
+           Voice::it_IT_GiuseppeNeural => {"Microsoft Server Speech Text to Speech Voice (it-IT, GiuseppeNeural)"}
            Voice::it_IT_DiegoNeural => {"Microsoft Server Speech Text to Speech Voice (it-IT, DiegoNeural)"}
            Voice::it_IT_ElsaNeural => {"Microsoft Server Speech Text to Speech Voice (it-IT, ElsaNeural)"}
            Voice::it_IT_IsabellaNeural => {"Microsoft Server Speech Text to Speech Voice (it-IT, IsabellaNeural)"}
@@ -783,6 +831,7 @@ impl From<Voice> for &str {
            Voice::kk_KZ_DauletNeural => {"Microsoft Server Speech Text to Speech Voice (kk-KZ, DauletNeural)"}
            Voice::km_KH_PisethNeural => {"Microsoft Server Speech Text to Speech Voice (km-KH, PisethNeural)"}
            Voice::km_KH_SreymomNeural => {"Microsoft Server Speech Text to Speech Voice (km-KH, SreymomNeural)"}
+           Voice::ko_KR_HyunsuNeural => {"Microsoft Server Speech Text to Speech Voice (ko-KR, HyunsuNeural)"}
            Voice::ko_KR_InJoonNeural => {"Microsoft Server Speech Text to Speech Voice (ko-KR, InJoonNeural)"}
            Voice::ko_KR_SunHiNeural => {"Microsoft Server Speech Text to Speech Voice (ko-KR, SunHiNeural)"}
            Voice::lo_LA_ChanthavongNeural => {"Microsoft Server Speech Text to Speech Voice (lo-LA, ChanthavongNeural)"}
@@ -813,6 +862,7 @@ impl From<Voice> for &str {
            Voice::fa_IR_FaridNeural => {"Microsoft Server Speech Text to Speech Voice (fa-IR, FaridNeural)"}
            Voice::pl_PL_MarekNeural => {"Microsoft Server Speech Text to Speech Voice (pl-PL, MarekNeural)"}
            Voice::pl_PL_ZofiaNeural => {"Microsoft Server Speech Text to Speech Voice (pl-PL, ZofiaNeural)"}
+           Voice::pt_BR_ThalitaNeural => {"Microsoft Server Speech Text to Speech Voice (pt-BR, ThalitaNeural)"}
            Voice::pt_BR_AntonioNeural => {"Microsoft Server Speech Text to Speech Voice (pt-BR, AntonioNeural)"}
            Voice::pt_BR_FranciscaNeural => {"Microsoft Server Speech Text to Speech Voice (pt-BR, FranciscaNeural)"}
            Voice::pt_PT_DuarteNeural => {"Microsoft Server Speech Text to Speech Voice (pt-PT, DuarteNeural)"}
@@ -837,6 +887,7 @@ impl From<Voice> for &str {
            Voice::es_BO_SofiaNeural => {"Microsoft Server Speech Text to Speech Voice (es-BO, SofiaNeural)"}
            Voice::es_CL_CatalinaNeural => {"Microsoft Server Speech Text to Speech Voice (es-CL, CatalinaNeural)"}
            Voice::es_CL_LorenzoNeural => {"Microsoft Server Speech Text to Speech Voice (es-CL, LorenzoNeural)"}
+           Voice::es_ES_XimenaNeural => {"Microsoft Server Speech Text to Speech Voice (es-ES, XimenaNeural)"}
            Voice::es_CO_GonzaloNeural => {"Microsoft Server Speech Text to Speech Voice (es-CO, GonzaloNeural)"}
            Voice::es_CO_SalomeNeural => {"Microsoft Server Speech Text to Speech Voice (es-CO, SalomeNeural)"}
            Voice::es_CR_JuanNeural => {"Microsoft Server Speech Text to Speech Voice (es-CR, JuanNeural)"}

@@ -18,7 +18,6 @@ fn main() {
 }
 
 fn target_dir() -> PathBuf {
-    // Determine the default target for the current platform
     let default_target = CURRENT_PLATFORM;
     let target_triple = env::var("TARGET").expect("TARGET environment variable not set");
     let is_default_target = target_triple == default_target;
