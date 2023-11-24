@@ -1,13 +1,13 @@
 mod ffi;
-mod lang;
+mod voices;
 
-use std::{io::Write, path::PathBuf};
+use std::{io::Write, path::Path};
 use thiserror::Error;
 use tungstenite::connect;
 use url::Url;
 
 pub use ffi::text_to_speech;
-pub use lang::Voice;
+pub use voices::Voice;
 
 // TODO: Add proper error handling
 
@@ -15,6 +15,8 @@ pub use lang::Voice;
 pub enum TTSError {
     #[error("unknown error")]
     Unknown,
+    #[error("invalid text")]
+    InvalidText,
 }
 
 impl From<tungstenite::Error> for TTSError {
@@ -67,7 +69,15 @@ fn tts_request(text: String, voice: Voice) -> String {
     r
 }
 
-fn generate(text: &str, voice: Voice, f: PathBuf) -> Result<()> {
+fn validate_text(text: &str) -> Result<()> {
+    if text.is_empty() || text.contains("<") || text.contains(">") {
+        return Err(TTSError::InvalidText);
+    }
+    Ok(())
+}
+
+pub fn generate(text: &str, voice: Voice, f: &Path) -> Result<()> {
+    validate_text(text)?;
     let (mut socket, _) = connect(build_url())?;
 
     let f = std::fs::File::create(f)?;
