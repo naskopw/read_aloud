@@ -26,13 +26,16 @@ impl From<TTSError> for TextToSpeechError {
 pub extern "C" fn text_to_speech(
     text: *const c_char,
     voice: Voice,
+    pitch: i32,
+    rate: f32,
+    volume: f32,
     f: *const c_char,
 ) -> TextToSpeechError {
     let text = unsafe { CStr::from_ptr(text) };
     let text = text.to_str().unwrap();
     let f = unsafe { CStr::from_ptr(f) };
     let f = f.to_str().unwrap();
-    match super::generate(text, voice, Path::new(f)) {
+    match super::generate(text, voice, pitch, rate, volume, Path::new(f)) {
         Ok(_) => TextToSpeechError::Success,
         Err(e) => e.into(),
     }

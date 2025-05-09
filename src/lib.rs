@@ -13,6 +13,8 @@ pub use voices::Voice;
 
 #[derive(Error, Debug)]
 pub enum TTSError {
+    #[error("invalid input")]
+    InvalidInput,
     #[error("unknown error")]
     Unknown,
 }
@@ -55,9 +57,13 @@ fn setup_request() -> String {
     r
 }
 
-fn tts_request(text: String, voice: Voice) -> String {
+fn tts_request(text: String, voice: Voice, pitch: i32, rate: f32, volume: f32) -> String {
+    let pitch =  format!("{}Hz", pitch);
+    let rate = format!("{}%", (rate * 100.0).round() as i32);
+    let volume = format!("{}%", (volume * 100.0).round() as i32);
+
     let voice: &str = voice.into();
-    let body = format!("<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'  xml:lang='en-US'><voice name='{}'><prosody pitch='+0Hz' rate ='+0%' volume='+0%'>{}</prosody></voice></speak>", voice, text);
+    let body = format!("<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'  xml:lang='en-US'><voice name='{}'><prosody pitch='{}' rate ='{}' volume='{}'>{}</prosody></voice></speak>", voice, pitch, rate, volume, text);
     let r = RequestBuilder::new()
         .add_header("X-RequestId", uid().as_str())
         .add_header("Content-Type", "application/ssml+xml")
@@ -71,7 +77,16 @@ fn sanitize_text(text: &str) -> String {
     text.replace("<", "").replace(">", "")
 }
 
-pub fn generate(text: &str, voice: Voice, f: &Path) -> Result<()> {
+pub fn generate(text: &str, voice: Voice, pitch: i32, rate: f32, volume: f32, f: &Path) -> Result<()> {
+    if text.is_empty() {
+        return Err(TTSError::InvalidInput);
+    }
+    if rate < -1.0 || rate > 1.0 {
+        return Err(TTSError::InvalidInput);
+    }
+    if volume < -1.0 || volume > 1.0 {
+        return Err(TTSError::InvalidInput);
+    }
     let text = sanitize_text(text);
     let (mut socket, _) = connect(build_url())?;
 
@@ -79,7 +94,7 @@ pub fn generate(text: &str, voice: Voice, f: &Path) -> Result<()> {
     let mut writer = std::io::BufWriter::new(f);
 
     socket.write(setup_request().into())?;
-    socket.write(tts_request(text.into(), voice).into())?;
+    socket.write(tts_request(text.into(), voice, pitch, rate, volume).into())?;
     socket.flush()?;
 
     loop {
