@@ -158,9 +158,9 @@ pub enum Voice {
   #[allow(non_camel_case_types)]
   nl_NL_MaartenNeural,
   #[allow(non_camel_case_types)]
-  en_AU_NatashaNeural,
+  en_AU_WilliamMultilingualNeural,
   #[allow(non_camel_case_types)]
-  en_AU_WilliamNeural,
+  en_AU_NatashaNeural,
   #[allow(non_camel_case_types)]
   en_CA_ClaraNeural,
   #[allow(non_camel_case_types)]
@@ -729,8 +729,8 @@ impl From<Voice> for &str {
            Voice::nl_NL_ColetteNeural => {"Microsoft Server Speech Text to Speech Voice (nl-NL, ColetteNeural)"}
            Voice::nl_NL_FennaNeural => {"Microsoft Server Speech Text to Speech Voice (nl-NL, FennaNeural)"}
            Voice::nl_NL_MaartenNeural => {"Microsoft Server Speech Text to Speech Voice (nl-NL, MaartenNeural)"}
+           Voice::en_AU_WilliamMultilingualNeural => {"Microsoft Server Speech Text to Speech Voice (en-AU, WilliamMultilingualNeural)"}
            Voice::en_AU_NatashaNeural => {"Microsoft Server Speech Text to Speech Voice (en-AU, NatashaNeural)"}
-           Voice::en_AU_WilliamNeural => {"Microsoft Server Speech Text to Speech Voice (en-AU, WilliamNeural)"}
            Voice::en_CA_ClaraNeural => {"Microsoft Server Speech Text to Speech Voice (en-CA, ClaraNeural)"}
            Voice::en_CA_LiamNeural => {"Microsoft Server Speech Text to Speech Voice (en-CA, LiamNeural)"}
            Voice::en_HK_YanNeural => {"Microsoft Server Speech Text to Speech Voice (en-HK, YanNeural)"}
