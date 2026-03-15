@@ -6,6 +6,21 @@ It reverse-engineers the awesome [Microsoft Edge Read aloud](https://www.microso
 
 Read aloud is a low-level library that is designed as a building block for higher-level text-to-speech libraries and applications.
 
+## Build requirements
+
+This library connects to the Edge read-aloud service over secure WebSockets. TLS support is currently provided by `tungstenite` with its `native-tls` feature enabled.
+
+On Linux, `native-tls` uses the system OpenSSL installation, so building this crate requires OpenSSL development files and `pkg-config` to be installed.
+
+For Debian or Ubuntu:
+
+```sh
+sudo apt-get update
+sudo apt-get install libssl-dev pkg-config
+```
+
+On Windows and macOS, `native-tls` uses the platform TLS stack instead of OpenSSL, so this Linux-specific package installation is usually not required.
+
 ## API
 
 The library provides a single function that takes a text, a voice, and a file path as input, and saves the output to the file in MP3 format.
