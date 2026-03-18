@@ -8,6 +8,7 @@ use std::{
 };
 
 use httpdate::parse_http_date;
+use urlencoding::encode;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tungstenite::{
@@ -180,11 +181,7 @@ fn tts_request(text: String, voice: Voice, pitch: i32, rate: f32, volume: f32) -
 }
 
 fn sanitize_text(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+    encode(text).into_owned()
 }
 
 fn parse_binary_response(bin_data: &[u8]) -> Result<Option<&[u8]>> {

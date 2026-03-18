@@ -19,7 +19,7 @@ After building the library, you can run the bundled Python smoke test:
 cargo build && python smoke.py
 ```
 
-If the request succeeds, it writes `output.mp3` in the repository root.
+If the request succeeds, it writes `smoke_output.mp3` in the repository root.
 
 ## Build requirements
 
@@ -85,7 +85,9 @@ The function returns 0 on success, and a non-zero error code on failure:
 
 ## Examples
 
-## C++
+
+<details>
+<summary>C++</summary>
 
 ```cpp
 // Calling text_to_speech from C++ on Windows
@@ -139,7 +141,10 @@ int main()
 }
 ```
 
-## Python
+</details>
+
+<details>
+<summary>Python</summary>
 
 ```python
 import ctypes
@@ -178,3 +183,5 @@ if result != 0:
 else:
     print("Text to speech succeeded")
 ```
+
+</details>
