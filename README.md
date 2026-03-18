@@ -6,6 +6,21 @@ It reverse-engineers the awesome [Microsoft Edge Read aloud](https://www.microso
 
 Read aloud is a low-level library that is designed as a building block for higher-level text-to-speech libraries and applications.
 
+
+## Edge service compatibility
+
+> This crate counterfeits the communication protocol used by Microsoft Edge to work with the Read Aloud service. **Any change to the upstream Edge service can break the crate, even if the public C ABI stays the same.** If the service updates its protocol, authentication, or required headers, the library may need internal changes to restore functionality.
+
+### Quick verification
+
+After building the library, you can run the bundled Python smoke test:
+
+```sh
+cargo build && python smoke.py
+```
+
+If the request succeeds, it writes `output.mp3` in the repository root.
+
 ## Build requirements
 
 This library connects to the Edge read-aloud service over secure WebSockets. TLS support is currently provided by `tungstenite` with its `native-tls` feature enabled.
@@ -23,23 +38,54 @@ On Windows and macOS, `native-tls` uses the platform TLS stack instead of OpenSS
 
 ## API
 
-The library provides a single function that takes a text, a voice, and a file path as input, and saves the output to the file in MP3 format.
+
+The library exposes a stable C ABI for text-to-speech generation and error reporting.
 
 ```c
-int text_to_speech(const char *text, enum Voice voice, const char *f);
+// Generate speech audio from text and save to a file. Returns a status code.
+enum ReadAloudStatus text_to_speech(
+    const char *text,
+    enum Voice voice,
+    int32_t pitch,
+    float rate,
+    float volume,
+    const char *output_path
+);
+
+// Get a short static description for a status code.
+const char *read_aloud_status_string(enum ReadAloudStatus status);
+
+// Get a detailed error message for the last failure on the calling thread.
+const char *read_aloud_last_error_message(void);
 ```
+
+`text_to_speech` returns a stable numeric status code.
+
+`read_aloud_status_string` returns a short static description for that code.
+
+`read_aloud_last_error_message` returns a more detailed, thread-local message describing the last failure on the calling thread. The pointer remains valid until the next library call on the same thread.
+
+### Parameters
+
+`pitch` is specified in Hz.
+
+`rate` must be between `-1.0` and `1.0`, where `0.0` is the default voice speed.
+
+`volume` must be between `-1.0` and `1.0`, where `0.0` is the default voice volume.
 
 ### Error codes
 
 The function returns 0 on success, and a non-zero error code on failure:
 
-[Error codes](./src/ffi.rs#L10)
+[Error codes](./src/ffi.rs#L16)
 
 ## Supported languages and voices
 
 [Languages and voices](./src/voices.rs)
 
-# Example
+## Examples
+
+## C++
 
 ```cpp
 // Calling text_to_speech from C++ on Windows
@@ -47,7 +93,9 @@ The function returns 0 on success, and a non-zero error code on failure:
 #include <windows.h>
 #include "read_aloud.h"
 
-typedef int (*TextToSpeechFunc)(const char *, Voice, const char *);
+typedef ReadAloudStatus (*TextToSpeechFunc)(const char *, Voice, int, float, float, const char *);
+typedef const char *(*StatusStringFunc)(ReadAloudStatus);
+typedef const char *(*LastErrorFunc)();
 
 int main()
 {
@@ -59,21 +107,27 @@ int main()
     }
 
     TextToSpeechFunc text_to_speech = (TextToSpeechFunc)GetProcAddress(hModule, "text_to_speech");
-    if (!text_to_speech)
+    StatusStringFunc status_string = (StatusStringFunc)GetProcAddress(hModule, "read_aloud_status_string");
+    LastErrorFunc last_error = (LastErrorFunc)GetProcAddress(hModule, "read_aloud_last_error_message");
+    if (!text_to_speech || !status_string || !last_error)
     {
-        std::cerr << "Failed to get text_to_speech function address" << std::endl;
+        std::cerr << "Failed to get function addresses" << std::endl;
         FreeLibrary(hModule);
         return 1;
     }
 
     const char *text = "Hello, World!";
     Voice voice = en_GB_ThomasNeural;
+    int pitch = 0;
+    float rate = 0.0f;
+    float volume = 0.0f;
     const char *file = "output.mp3";
 
-    int result = text_to_speech(text, voice, file);
-    if (result != 0)
+    ReadAloudStatus result = text_to_speech(text, voice, pitch, rate, volume, file);
+    if (result != Success)
     {
-        std::cerr << "text_to_speech failed with error code " << result << std::endl;
+        std::cerr << "text_to_speech failed: " << status_string(result) << std::endl;
+        std::cerr << "details: " << last_error() << std::endl;
     }
     else
     {
@@ -83,4 +137,44 @@ int main()
     FreeLibrary(hModule);
     return 0;
 }
+```
+
+## Python
+
+```python
+import ctypes
+import os
+
+lib = ctypes.CDLL(os.path.abspath("./target/debug/libread_aloud.so"))
+
+lib.text_to_speech.argtypes = [
+    ctypes.c_char_p,
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_float,
+    ctypes.c_float,
+    ctypes.c_char_p,
+]
+lib.text_to_speech.restype = ctypes.c_int
+
+lib.read_aloud_status_string.argtypes = [ctypes.c_int]
+lib.read_aloud_status_string.restype = ctypes.c_char_p
+lib.read_aloud_last_error_message.argtypes = []
+lib.read_aloud_last_error_message.restype = ctypes.c_char_p
+
+voice = 223  # en_GB_ThomasNeural
+result = lib.text_to_speech(
+    b"Hello, World!",
+    voice,
+    0,
+    ctypes.c_float(0.0),
+    ctypes.c_float(0.0),
+    b"output.mp3",
+)
+
+if result != 0:
+    print("status:", lib.read_aloud_status_string(result).decode())
+    print("details:", lib.read_aloud_last_error_message().decode())
+else:
+    print("Text to speech succeeded")
 ```
