@@ -11,16 +11,6 @@ Read aloud is a low-level library that is designed as a building block for highe
 
 > This crate counterfeits the communication protocol used by Microsoft Edge to work with the Read Aloud service. **Any change to the upstream Edge service can break the crate, even if the public C ABI stays the same.** If the service updates its protocol, authentication, or required headers, the library may need internal changes to restore functionality.
 
-### Quick verification
-
-After building the library, you can run the bundled Python smoke test:
-
-```sh
-cargo build && python smoke.py
-```
-
-If the request succeeds, it writes `smoke_output.mp3` in the repository root.
-
 ## Build requirements
 
 This library connects to the Edge read-aloud service over secure WebSockets. TLS support is currently provided by `tungstenite` with its `native-tls` feature enabled.
@@ -38,17 +28,51 @@ On Windows and macOS, `native-tls` uses the platform TLS stack instead of OpenSS
 
 ## API
 
+The library exposes both a Rust API and a C ABI for text-to-speech generation.
 
-The library exposes a stable C ABI for text-to-speech generation and error reporting.
+### Rust API
+
+```rust
+use std::path::Path;
+
+use read_aloud::{text_to_speech, SpeechOptions, Voice};
+
+let options = SpeechOptions {
+    pitch_hz: 0,
+    rate: 0.0,
+    volume: 0.0,
+};
+
+text_to_speech(
+    "Hello, World!",
+    Voice::en_GB_ThomasNeural,
+    options,
+    Path::new("output.mp3"),
+)?;
+```
+
+`SpeechOptions::default()` uses the service defaults for pitch, rate, and volume.
+
+### C API
+
+The C ABI uses a size-prefixed options struct so the parameter surface can evolve without redesigning the function signature.
 
 ```c
-// Generate speech audio from text and save to a file. Returns a status code.
-enum ReadAloudStatus text_to_speech(
+typedef struct ReadAloudSpeechOptions {
+    uint32_t size;
+    int32_t pitch_hz;
+    float rate;
+    float volume;
+} ReadAloudSpeechOptions;
+
+// Initialize an options struct with library defaults.
+enum ReadAloudStatus read_aloud_speech_options_init(ReadAloudSpeechOptions *options);
+
+// Generate speech audio from text and save to a file. Pass NULL for default options.
+enum ReadAloudStatus read_aloud_text_to_speech(
     const char *text,
     enum Voice voice,
-    int32_t pitch,
-    float rate,
-    float volume,
+    const ReadAloudSpeechOptions *options,
     const char *output_path
 );
 
@@ -59,7 +83,11 @@ const char *read_aloud_status_string(enum ReadAloudStatus status);
 const char *read_aloud_last_error_message(void);
 ```
 
-`text_to_speech` returns a stable numeric status code.
+`read_aloud_text_to_speech` returns a numeric status code.
+
+Passing `NULL` for `options` uses the default pitch, rate, and volume.
+
+`read_aloud_speech_options_init` fills a caller-provided options struct and sets its `size` field for the current ABI.
 
 `read_aloud_status_string` returns a short static description for that code.
 
@@ -67,7 +95,7 @@ const char *read_aloud_last_error_message(void);
 
 ### Parameters
 
-`pitch` is specified in Hz.
+`pitch_hz` is specified in Hz.
 
 `rate` must be between `-1.0` and `1.0`, where `0.0` is the default voice speed.
 
@@ -85,58 +113,118 @@ The function returns 0 on success, and a non-zero error code on failure:
 
 ## Examples
 
+<details>
+<summary>C</summary>
+
+```c
+// Load the read_aloud shared library and resolve the exported symbols before running this example.
+#include <stdio.h>
+#include "read_aloud.h"
+
+int main(void) {
+    enum ReadAloudStatus status = read_aloud_text_to_speech(
+        "Hello, World!",
+        en_GB_ThomasNeural,
+        NULL,
+        "output.mp3"
+    );
+    if (status != Success) {
+        fprintf(stderr, "TTS failed: %s\n", read_aloud_status_string(status));
+        fprintf(stderr, "details: %s\n", read_aloud_last_error_message());
+        return 1;
+    }
+
+    ReadAloudSpeechOptions options;
+    status = read_aloud_speech_options_init(&options);
+    if (status != Success) {
+        fprintf(stderr, "Failed to initialize options: %s\n", read_aloud_last_error_message());
+        return 1;
+    }
+
+    options.rate = 0.2f;
+    status = read_aloud_text_to_speech(
+        "Custom rate!",
+        en_GB_ThomasNeural,
+        &options,
+        "custom_output.mp3"
+    );
+    if (status != Success) {
+        fprintf(stderr, "TTS failed: %s\n", read_aloud_status_string(status));
+        fprintf(stderr, "details: %s\n", read_aloud_last_error_message());
+        return 1;
+    }
+
+    printf("Both TTS calls succeeded.\n");
+    return 0;
+}
+```
+
+</details>
+
+<details>
+<summary>Rust</summary>
+
+```rust
+use std::path::Path;
+
+use read_aloud::{text_to_speech, SpeechOptions, Voice};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    text_to_speech(
+        "Hello, World!",
+        Voice::en_GB_ThomasNeural,
+        SpeechOptions::default(),
+        Path::new("output.mp3"),
+    )?;
+
+    let mut options = SpeechOptions::default();
+    options.rate = 0.2;
+
+    text_to_speech(
+        "Custom rate!",
+        Voice::en_GB_ThomasNeural,
+        options,
+        Path::new("custom_output.mp3"),
+    )?;
+
+    Ok(())
+}
+```
+
+</details>
 
 <details>
 <summary>C++</summary>
 
 ```cpp
-// Calling text_to_speech from C++ on Windows
+// Load the read_aloud shared library and resolve the exported symbols before running this example.
 #include <iostream>
-#include <windows.h>
 #include "read_aloud.h"
 
-typedef ReadAloudStatus (*TextToSpeechFunc)(const char *, Voice, int, float, float, const char *);
-typedef const char *(*StatusStringFunc)(ReadAloudStatus);
-typedef const char *(*LastErrorFunc)();
-
-int main()
-{
-    HMODULE hModule = LoadLibraryA("read_aloud.dll");
-    if (!hModule)
-    {
-        std::cerr << "Failed to load read_aloud.dll" << std::endl;
+int main() {
+    auto status = read_aloud_text_to_speech("Hello, World!", en_GB_ThomasNeural, nullptr, "output.mp3");
+    if (status != Success) {
+        std::cerr << "TTS failed: " << read_aloud_status_string(status) << std::endl;
+        std::cerr << "details: " << read_aloud_last_error_message() << std::endl;
         return 1;
     }
 
-    TextToSpeechFunc text_to_speech = (TextToSpeechFunc)GetProcAddress(hModule, "text_to_speech");
-    StatusStringFunc status_string = (StatusStringFunc)GetProcAddress(hModule, "read_aloud_status_string");
-    LastErrorFunc last_error = (LastErrorFunc)GetProcAddress(hModule, "read_aloud_last_error_message");
-    if (!text_to_speech || !status_string || !last_error)
-    {
-        std::cerr << "Failed to get function addresses" << std::endl;
-        FreeLibrary(hModule);
+    ReadAloudSpeechOptions options;
+    status = read_aloud_speech_options_init(&options);
+    if (status != Success) {
+        std::cerr << "Failed to initialize options: " << read_aloud_last_error_message() << std::endl;
         return 1;
     }
 
-    const char *text = "Hello, World!";
-    Voice voice = en_GB_ThomasNeural;
-    int pitch = 0;
-    float rate = 0.0f;
-    float volume = 0.0f;
-    const char *file = "output.mp3";
-
-    ReadAloudStatus result = text_to_speech(text, voice, pitch, rate, volume, file);
-    if (result != Success)
-    {
-        std::cerr << "text_to_speech failed: " << status_string(result) << std::endl;
-        std::cerr << "details: " << last_error() << std::endl;
-    }
-    else
-    {
-        std::cout << "Text to speech succeeded, output saved to " << file << std::endl;
+    options.rate = 0.2f;
+    status = read_aloud_text_to_speech("Custom rate!", en_GB_ThomasNeural, &options, "custom_output.mp3");
+    if (status != Success) {
+        std::cerr << "TTS failed: " << read_aloud_status_string(status) << std::endl;
+        std::cerr << "details: " << read_aloud_last_error_message() << std::endl;
+        return 1;
     }
 
-    FreeLibrary(hModule);
+    std::cout << "Both TTS calls succeeded." << std::endl;
     return 0;
 }
 ```
@@ -148,40 +236,72 @@ int main()
 
 ```python
 import ctypes
-import os
 
-lib = ctypes.CDLL(os.path.abspath("./target/debug/libread_aloud.so"))
+# Load the read_aloud shared library before running this example.
+# Assume `lib` is an already-loaded ctypes.CDLL instance.
 
-lib.text_to_speech.argtypes = [
+class ReadAloudSpeechOptions(ctypes.Structure):
+    _fields_ = [
+        ("size", ctypes.c_uint32),
+        ("pitch_hz", ctypes.c_int32),
+        ("rate", ctypes.c_float),
+        ("volume", ctypes.c_float),
+    ]
+
+lib.read_aloud_speech_options_init.argtypes = [ctypes.POINTER(ReadAloudSpeechOptions)]
+lib.read_aloud_speech_options_init.restype = ctypes.c_int
+
+lib.read_aloud_text_to_speech.argtypes = [
     ctypes.c_char_p,
     ctypes.c_int,
-    ctypes.c_int,
-    ctypes.c_float,
-    ctypes.c_float,
+    ctypes.POINTER(ReadAloudSpeechOptions),
     ctypes.c_char_p,
 ]
-lib.text_to_speech.restype = ctypes.c_int
+lib.read_aloud_text_to_speech.restype = ctypes.c_int
 
 lib.read_aloud_status_string.argtypes = [ctypes.c_int]
 lib.read_aloud_status_string.restype = ctypes.c_char_p
 lib.read_aloud_last_error_message.argtypes = []
 lib.read_aloud_last_error_message.restype = ctypes.c_char_p
 
-voice = 223  # en_GB_ThomasNeural
-result = lib.text_to_speech(
+
+def print_error(status: int) -> None:
+    print("status:", lib.read_aloud_status_string(status).decode())
+    print("details:", lib.read_aloud_last_error_message().decode())
+
+
+voice = 110  # en_GB_ThomasNeural
+
+result = lib.read_aloud_text_to_speech(
     b"Hello, World!",
     voice,
-    0,
-    ctypes.c_float(0.0),
-    ctypes.c_float(0.0),
+    None,
     b"output.mp3",
 )
-
 if result != 0:
-    print("status:", lib.read_aloud_status_string(result).decode())
-    print("details:", lib.read_aloud_last_error_message().decode())
-else:
-    print("Text to speech succeeded")
+    print_error(result)
+    raise SystemExit(1)
+
+options = ReadAloudSpeechOptions()
+result = lib.read_aloud_speech_options_init(ctypes.byref(options))
+if result != 0:
+    print_error(result)
+    raise SystemExit(1)
+
+options.rate = ctypes.c_float(0.2)
+result = lib.read_aloud_text_to_speech(
+    b"Custom rate!",
+    voice,
+    ctypes.byref(options),
+    b"custom_output.mp3",
+)
+if result != 0:
+    print_error(result)
+    raise SystemExit(1)
+
+print("Both TTS calls succeeded.")
 ```
 
 </details>
+
+

@@ -8,7 +8,6 @@ use std::{
 };
 
 use httpdate::parse_http_date;
-use urlencoding::encode;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tungstenite::{
@@ -19,8 +18,31 @@ use tungstenite::{
     Message,
 };
 
-pub use ffi::{read_aloud_last_error_message, read_aloud_status_string, text_to_speech, ReadAloudStatus};
+pub use ffi::{
+    read_aloud_last_error_message, read_aloud_speech_options_init, read_aloud_status_string,
+    read_aloud_text_to_speech, ReadAloudSpeechOptions, ReadAloudStatus,
+};
+pub use speech_options::SpeechOptions;
 pub use voices::Voice;
+
+mod speech_options {
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct SpeechOptions {
+        pub pitch_hz: i32,
+        pub rate: f32,
+        pub volume: f32,
+    }
+
+    impl Default for SpeechOptions {
+        fn default() -> Self {
+            Self {
+                pitch_hz: 0,
+                rate: 0.0,
+                volume: 0.0,
+            }
+        }
+    }
+}
 
 const TRUSTED_CLIENT_TOKEN: &str = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 const EDGE_MAJOR_VERSION: &str = "146";
@@ -100,10 +122,18 @@ fn build_websocket_request(clock_skew_seconds: f64) -> Result<Request<()>> {
         .into_client_request()
         .map_err(|error| TTSError::Connection(error.to_string()))?;
 
-    request.headers_mut().insert("Pragma", "no-cache".parse().unwrap());
-    request.headers_mut().insert("Cache-Control", "no-cache".parse().unwrap());
-    request.headers_mut().insert("User-Agent", user_agent().parse().unwrap());
-    request.headers_mut().insert("Origin", ORIGIN_VALUE.parse().unwrap());
+    request
+        .headers_mut()
+        .insert("Pragma", "no-cache".parse().unwrap());
+    request
+        .headers_mut()
+        .insert("Cache-Control", "no-cache".parse().unwrap());
+    request
+        .headers_mut()
+        .insert("User-Agent", user_agent().parse().unwrap());
+    request
+        .headers_mut()
+        .insert("Origin", ORIGIN_VALUE.parse().unwrap());
     request
         .headers_mut()
         .insert("Accept-Encoding", ACCEPT_ENCODING_VALUE.parse().unwrap());
@@ -114,13 +144,14 @@ fn build_websocket_request(clock_skew_seconds: f64) -> Result<Request<()>> {
         "Cookie",
         format!("MUID={};", uid().to_uppercase()).parse().unwrap(),
     );
-    request.headers_mut().insert(
-        "Sec-MS-GEC-Version",
-        SEC_MS_GEC_VERSION.parse().unwrap(),
-    );
+    request
+        .headers_mut()
+        .insert("Sec-MS-GEC-Version", SEC_MS_GEC_VERSION.parse().unwrap());
     request.headers_mut().insert(
         "Sec-WebSocket-Extensions",
-        "permessage-deflate; client_max_window_bits".parse().unwrap(),
+        "permessage-deflate; client_max_window_bits"
+            .parse()
+            .unwrap(),
     );
 
     Ok(request)
@@ -133,7 +164,8 @@ fn clock_skew_from_response(response: &http::Response<Option<Vec<u8>>>) -> Optio
     Some(server_seconds - now_unix_seconds())
 }
 
-fn open_socket() -> Result<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>> {
+fn open_socket(
+) -> Result<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>> {
     let request = build_websocket_request(0.0)?;
     match connect(request) {
         Ok((socket, _)) => Ok(socket),
@@ -164,10 +196,10 @@ fn setup_request() -> String {
     r
 }
 
-fn tts_request(text: String, voice: Voice, pitch: i32, rate: f32, volume: f32) -> String {
-    let pitch = format!("{:+}Hz", pitch);
-    let rate = format!("{:+}%", (rate * 100.0).round() as i32);
-    let volume = format!("{:+}%", (volume * 100.0).round() as i32);
+fn tts_request(text: String, voice: Voice, options: SpeechOptions) -> String {
+    let pitch = format!("{:+}Hz", options.pitch_hz);
+    let rate = format!("{:+}%", (options.rate * 100.0).round() as i32);
+    let volume = format!("{:+}%", (options.volume * 100.0).round() as i32);
 
     let voice: &str = voice.into();
     let body = format!("<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'  xml:lang='en-US'><voice name='{}'><prosody pitch='{}' rate ='{}' volume='{}'>{}</prosody></voice></speak>", voice, pitch, rate, volume, text);
@@ -181,7 +213,11 @@ fn tts_request(text: String, voice: Voice, pitch: i32, rate: f32, volume: f32) -
 }
 
 fn sanitize_text(text: &str) -> String {
-    encode(text).into_owned()
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 fn parse_binary_response(bin_data: &[u8]) -> Result<Option<&[u8]>> {
@@ -230,27 +266,36 @@ fn parse_binary_response(bin_data: &[u8]) -> Result<Option<&[u8]>> {
     Ok(Some(&bin_data[header_end..]))
 }
 
-pub fn generate(text: &str, voice: Voice, pitch: i32, rate: f32, volume: f32, f: &Path) -> Result<()> {
+pub fn text_to_speech(
+    text: &str,
+    voice: Voice,
+    options: SpeechOptions,
+    output_path: &Path,
+) -> Result<()> {
     if text.is_empty() {
         return Err(TTSError::InvalidInput("text cannot be empty".into()));
     }
-    if rate < -1.0 || rate > 1.0 {
-        return Err(TTSError::InvalidInput("rate must be between -1.0 and 1.0".into()));
+    if options.rate < -1.0 || options.rate > 1.0 {
+        return Err(TTSError::InvalidInput(
+            "rate must be between -1.0 and 1.0".into(),
+        ));
     }
-    if volume < -1.0 || volume > 1.0 {
-        return Err(TTSError::InvalidInput("volume must be between -1.0 and 1.0".into()));
+    if options.volume < -1.0 || options.volume > 1.0 {
+        return Err(TTSError::InvalidInput(
+            "volume must be between -1.0 and 1.0".into(),
+        ));
     }
     let text = sanitize_text(text);
     let mut socket = open_socket()?;
 
-    let f = std::fs::File::create(f).map_err(|error| TTSError::Io(error.to_string()))?;
+    let f = std::fs::File::create(output_path).map_err(|error| TTSError::Io(error.to_string()))?;
     let mut writer = std::io::BufWriter::new(f);
 
     socket
         .write(Message::Text(setup_request()))
         .map_err(|error| TTSError::Connection(error.to_string()))?;
     socket
-        .write(Message::Text(tts_request(text, voice, pitch, rate, volume)))
+        .write(Message::Text(tts_request(text, voice, options)))
         .map_err(|error| TTSError::Connection(error.to_string()))?;
     socket
         .flush()
@@ -299,5 +344,21 @@ impl RequestBuilder {
         let headers = self.headers.join("\r\n");
         let request = format!("{}\r\n\r\n{}", headers, body);
         request
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_text;
+
+    #[test]
+    fn sanitize_text_escapes_ssml_special_characters() {
+        let input = "Tom & Jerry <Cartoon> \"Quote\" 'Single'";
+        let escaped = sanitize_text(input);
+
+        assert_eq!(
+            escaped,
+            "Tom &amp; Jerry &lt;Cartoon&gt; &quot;Quote&quot; &apos;Single&apos;"
+        );
     }
 }

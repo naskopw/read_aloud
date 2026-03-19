@@ -1,10 +1,12 @@
 use std::{
     cell::RefCell,
     ffi::{c_char, CStr, CString},
+    mem,
+    ptr,
     path::Path,
 };
 
-use crate::{TTSError, Voice};
+use crate::{SpeechOptions, TTSError, Voice};
 
 thread_local! {
     static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = RefCell::new(None);
@@ -27,6 +29,33 @@ pub enum ReadAloudStatus {
     /// An unexpected internal failure occurred.
     InternalError = 255,
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct ReadAloudSpeechOptions {
+    pub size: u32,
+    pub pitch_hz: i32,
+    pub rate: f32,
+    pub volume: f32,
+}
+
+impl Default for ReadAloudSpeechOptions {
+    fn default() -> Self {
+        Self {
+            size: mem::size_of::<Self>() as u32,
+            pitch_hz: 0,
+            rate: 0.0,
+            volume: 0.0,
+        }
+    }
+}
+
+const SPEECH_OPTIONS_SIZE_OFFSET: usize = std::mem::offset_of!(ReadAloudSpeechOptions, size);
+const SPEECH_OPTIONS_PITCH_OFFSET: usize = std::mem::offset_of!(ReadAloudSpeechOptions, pitch_hz);
+const SPEECH_OPTIONS_RATE_OFFSET: usize = std::mem::offset_of!(ReadAloudSpeechOptions, rate);
+const SPEECH_OPTIONS_VOLUME_OFFSET: usize = std::mem::offset_of!(ReadAloudSpeechOptions, volume);
+const MINIMUM_SPEECH_OPTIONS_SIZE: u32 =
+    (SPEECH_OPTIONS_SIZE_OFFSET + mem::size_of::<u32>()) as u32;
 
 impl From<TTSError> for ReadAloudStatus {
     fn from(e: TTSError) -> Self {
@@ -86,6 +115,38 @@ fn parse_c_string<'a>(ptr: *const c_char, field: &'static str) -> Result<&'a str
         .map_err(|_| TTSError::Utf8(field.into()))
 }
 
+fn parse_options(ptr: *const ReadAloudSpeechOptions) -> Result<SpeechOptions, TTSError> {
+    if ptr.is_null() {
+        return Ok(SpeechOptions::default());
+    }
+
+    let options = unsafe { &*ptr };
+    if options.size < MINIMUM_SPEECH_OPTIONS_SIZE {
+        return Err(TTSError::InvalidInput(
+            "speech options size is smaller than the supported ABI".into(),
+        ));
+    }
+
+    let mut parsed = SpeechOptions::default();
+    let base = ptr.cast::<u8>();
+
+    if has_field(options.size, SPEECH_OPTIONS_PITCH_OFFSET, mem::size_of::<i32>()) {
+        parsed.pitch_hz = unsafe { ptr::read_unaligned(base.add(SPEECH_OPTIONS_PITCH_OFFSET).cast()) };
+    }
+    if has_field(options.size, SPEECH_OPTIONS_RATE_OFFSET, mem::size_of::<f32>()) {
+        parsed.rate = unsafe { ptr::read_unaligned(base.add(SPEECH_OPTIONS_RATE_OFFSET).cast()) };
+    }
+    if has_field(options.size, SPEECH_OPTIONS_VOLUME_OFFSET, mem::size_of::<f32>()) {
+        parsed.volume = unsafe { ptr::read_unaligned(base.add(SPEECH_OPTIONS_VOLUME_OFFSET).cast()) };
+    }
+
+    Ok(parsed)
+}
+
+fn has_field(size: u32, offset: usize, field_size: usize) -> bool {
+    size as usize >= offset + field_size
+}
+
 #[no_mangle]
 pub extern "C" fn read_aloud_status_string(status: ReadAloudStatus) -> *const c_char {
     static_status_message(status)
@@ -102,20 +163,36 @@ pub extern "C" fn read_aloud_last_error_message() -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn text_to_speech(
+pub extern "C" fn read_aloud_speech_options_init(
+    options: *mut ReadAloudSpeechOptions,
+) -> ReadAloudStatus {
+    clear_last_error();
+
+    if options.is_null() {
+        return record_error(TTSError::NullPointer("speech options".into()));
+    }
+
+    unsafe {
+        *options = ReadAloudSpeechOptions::default();
+    }
+
+    ReadAloudStatus::Success
+}
+
+#[no_mangle]
+pub extern "C" fn read_aloud_text_to_speech(
     text: *const c_char,
     voice: Voice,
-    pitch: i32,
-    rate: f32,
-    volume: f32,
-    f: *const c_char,
+    options: *const ReadAloudSpeechOptions,
+    file_path: *const c_char,
 ) -> ReadAloudStatus {
     clear_last_error();
 
     let result = std::panic::catch_unwind(|| {
         let text = parse_c_string(text, "text")?;
-        let f = parse_c_string(f, "output path")?;
-        super::generate(text, voice, pitch, rate, volume, Path::new(f))
+        let options = parse_options(options)?;
+        let file_path = parse_c_string(file_path, "output path")?;
+        super::text_to_speech(text, voice, options, Path::new(file_path))
     });
 
     match result {
@@ -125,5 +202,99 @@ pub extern "C" fn text_to_speech(
             set_last_error("panic in text_to_speech");
             ReadAloudStatus::InternalError
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem;
+
+    #[repr(C)]
+    struct SizeOnlyOptions {
+        size: u32,
+    }
+
+    #[repr(C)]
+    struct PitchOnlyOptions {
+        size: u32,
+        pitch_hz: i32,
+    }
+
+    #[test]
+    fn parse_options_uses_defaults_for_null() {
+        let parsed = parse_options(std::ptr::null()).expect("null options should use defaults");
+        assert_eq!(parsed, SpeechOptions::default());
+    }
+
+    #[test]
+    fn parse_options_rejects_too_small_size() {
+        let options = SizeOnlyOptions { size: 0 };
+        let error = parse_options((&options as *const SizeOnlyOptions).cast())
+            .expect_err("too-small size should be rejected");
+        assert!(matches!(error, TTSError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn parse_options_accepts_prefix_struct_and_defaults_missing_fields() {
+        let options = PitchOnlyOptions {
+            size: mem::size_of::<PitchOnlyOptions>() as u32,
+            pitch_hz: 12,
+        };
+
+        let parsed = parse_options((&options as *const PitchOnlyOptions).cast())
+            .expect("prefix struct should be accepted");
+
+        assert_eq!(
+            parsed,
+            SpeechOptions {
+                pitch_hz: 12,
+                ..SpeechOptions::default()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_options_reads_all_known_fields() {
+        let options = ReadAloudSpeechOptions {
+            size: mem::size_of::<ReadAloudSpeechOptions>() as u32,
+            pitch_hz: 4,
+            rate: 0.25,
+            volume: -0.5,
+        };
+
+        let parsed = parse_options(&options).expect("full struct should parse");
+        assert_eq!(
+            parsed,
+            SpeechOptions {
+                pitch_hz: 4,
+                rate: 0.25,
+                volume: -0.5,
+            }
+        );
+    }
+
+    #[test]
+    fn speech_options_init_sets_defaults_and_size() {
+        let mut options = ReadAloudSpeechOptions {
+            size: 0,
+            pitch_hz: 10,
+            rate: 1.0,
+            volume: 1.0,
+        };
+
+        let status = read_aloud_speech_options_init(&mut options);
+
+        assert_eq!(status, ReadAloudStatus::Success);
+        assert_eq!(options.size, mem::size_of::<ReadAloudSpeechOptions>() as u32);
+        assert_eq!(options.pitch_hz, 0);
+        assert_eq!(options.rate, 0.0);
+        assert_eq!(options.volume, 0.0);
+    }
+
+    #[test]
+    fn speech_options_init_rejects_null_pointer() {
+        let status = read_aloud_speech_options_init(std::ptr::null_mut());
+        assert_eq!(status, ReadAloudStatus::InvalidInput);
     }
 }
