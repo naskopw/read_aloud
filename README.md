@@ -88,13 +88,13 @@ See the full API documentation at: https://docs.rs/crate/read-aloud/latest
 #include "read_aloud.h"
 
 int main(void) {
-    enum ReadAloudStatus status = read_aloud_text_to_speech(
+    ReadAloudStatus status = read_aloud_text_to_speech(
         "Hello, World!",
-        en_GB_ThomasNeural,
+        VOICE_EN_GB_THOMAS_NEURAL,
         NULL,
         "output.mp3"
     );
-    if (status != Success) {
+    if (status != READ_ALOUD_STATUS_SUCCESS) {
         fprintf(stderr, "TTS failed: %s\n", read_aloud_status_string(status));
         fprintf(stderr, "details: %s\n", read_aloud_last_error_message());
         return 1;
@@ -102,7 +102,7 @@ int main(void) {
 
     ReadAloudSpeechOptions options;
     status = read_aloud_speech_options_init(&options);
-    if (status != Success) {
+    if (status != READ_ALOUD_STATUS_SUCCESS) {
         fprintf(stderr, "Failed to initialize options: %s\n", read_aloud_last_error_message());
         return 1;
     }
@@ -110,11 +110,11 @@ int main(void) {
     options.rate = 0.2f;
     status = read_aloud_text_to_speech(
         "Custom rate!",
-        en_GB_ThomasNeural,
+        VOICE_EN_GB_THOMAS_NEURAL,
         &options,
         "custom_output.mp3"
     );
-    if (status != Success) {
+    if (status != READ_ALOUD_STATUS_SUCCESS) {
         fprintf(stderr, "TTS failed: %s\n", read_aloud_status_string(status));
         fprintf(stderr, "details: %s\n", read_aloud_last_error_message());
         return 1;
@@ -168,8 +168,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #include "read_aloud.h"
 
 int main() {
-    auto status = read_aloud_text_to_speech("Hello, World!", en_GB_ThomasNeural, nullptr, "output.mp3");
-    if (status != Success) {
+    auto status = read_aloud_text_to_speech("Hello, World!", VOICE_EN_GB_THOMAS_NEURAL, nullptr, "output.mp3");
+    if (status != READ_ALOUD_STATUS_SUCCESS) {
         std::cerr << "TTS failed: " << read_aloud_status_string(status) << std::endl;
         std::cerr << "details: " << read_aloud_last_error_message() << std::endl;
         return 1;
@@ -177,14 +177,14 @@ int main() {
 
     ReadAloudSpeechOptions options;
     status = read_aloud_speech_options_init(&options);
-    if (status != Success) {
+    if (status != READ_ALOUD_STATUS_SUCCESS) {
         std::cerr << "Failed to initialize options: " << read_aloud_last_error_message() << std::endl;
         return 1;
     }
 
     options.rate = 0.2f;
-    status = read_aloud_text_to_speech("Custom rate!", en_GB_ThomasNeural, &options, "custom_output.mp3");
-    if (status != Success) {
+    status = read_aloud_text_to_speech("Custom rate!", VOICE_EN_GB_THOMAS_NEURAL, &options, "custom_output.mp3");
+    if (status != READ_ALOUD_STATUS_SUCCESS) {
         std::cerr << "TTS failed: " << read_aloud_status_string(status) << std::endl;
         std::cerr << "details: " << read_aloud_last_error_message() << std::endl;
         return 1;
@@ -230,17 +230,17 @@ lib.read_aloud_status_string.restype = ctypes.c_char_p
 lib.read_aloud_last_error_message.argtypes = []
 lib.read_aloud_last_error_message.restype = ctypes.c_char_p
 
+VOICE_EN_GB_THOMAS_NEURAL = 110
+
 
 def print_error(status: int) -> None:
     print("status:", lib.read_aloud_status_string(status).decode())
     print("details:", lib.read_aloud_last_error_message().decode())
 
 
-voice = 110  # en_GB_ThomasNeural
-
 result = lib.read_aloud_text_to_speech(
     b"Hello, World!",
-    voice,
+    VOICE_EN_GB_THOMAS_NEURAL,
     None,
     b"output.mp3",
 )
@@ -257,7 +257,7 @@ if result != 0:
 options.rate = ctypes.c_float(0.2)
 result = lib.read_aloud_text_to_speech(
     b"Custom rate!",
-    voice,
+    VOICE_EN_GB_THOMAS_NEURAL,
     ctypes.byref(options),
     b"custom_output.mp3",
 )

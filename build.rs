@@ -6,12 +6,11 @@ use std::path::PathBuf;
 
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let mut config: cbindgen::Config = Default::default();
-    config.language = cbindgen::Language::C;
+    let config_path = PathBuf::from(&crate_dir).join("cbindgen.toml");
 
     cbindgen::Builder::new()
         .with_crate(crate_dir)
-        .with_config(config)
+        .with_config(cbindgen::Config::from_file(config_path).expect("Failed to read cbindgen.toml"))
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file(PathBuf::from(target_dir()).join("read_aloud.h"));
