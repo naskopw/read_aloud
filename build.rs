@@ -21,11 +21,15 @@ fn target_dir() -> PathBuf {
     let default_target = CURRENT_PLATFORM;
     let target_triple = env::var("TARGET").expect("TARGET environment variable not set");
     let is_default_target = target_triple == default_target;
-    let mut path = PathBuf::from(
-        env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment variable not set"),
-    );
+    let mut path = env::var_os("CARGO_TARGET_DIR").map(PathBuf::from).unwrap_or_else(|| {
+        let mut path = PathBuf::from(
+            env::var("CARGO_MANIFEST_DIR")
+                .expect("CARGO_MANIFEST_DIR environment variable not set"),
+        );
+        path.push("target");
+        path
+    });
     let profile = env::var("PROFILE").expect("PROFILE environment variable not set");
-    path.push("target");
     if !is_default_target {
         path.push(target_triple);
     }

@@ -54,7 +54,7 @@ Build the shared library and generated header with Cargo:
 cargo build --release
 ```
 
-This crate is configured to produce a shared library (`cdylib`) and a Rust library (`rlib`). After a release build, the generated artifacts are placed under `target/release/` for the host platform, or under `target/<target-triple>/release/` for cross-compilation.
+This crate is configured to produce a shared library (`cdylib`) and a Rust library (`rlib`). After a release build, the generated artifacts are placed in Cargo's target directory. By default this is `target/release/` for the host platform, or `target/<target-triple>/release/` for cross-compilation.
 
 The C integration artifacts are:
 
