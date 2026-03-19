@@ -12,7 +12,7 @@ thread_local! {
     static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = RefCell::new(None);
 }
 
-/// Enum representing the possible errors that can occur during text-to-speech generation.
+/// Numeric status codes returned by the C ABI.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReadAloudStatus {
@@ -30,12 +30,23 @@ pub enum ReadAloudStatus {
     InternalError = 255,
 }
 
+/// Size-prefixed speech options for the C ABI.
+///
+/// Initialize this struct with [read_aloud_speech_options_init] before setting any fields.
+/// Passing a null pointer for the `options` parameter of [read_aloud_text_to_speech] uses the
+/// library defaults instead.
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct ReadAloudSpeechOptions {
+    /// Size of the caller-provided struct in bytes.
+    ///
+    /// This lets the ABI accept prefix-compatible structs from older or newer callers.
     pub size: u32,
+    /// Voice pitch adjustment in hertz.
     pub pitch_hz: i32,
+    /// Relative speaking rate in the inclusive range `-1.0..=1.0`.
     pub rate: f32,
+    /// Relative output volume in the inclusive range `-1.0..=1.0`.
     pub volume: f32,
 }
 
@@ -148,11 +159,18 @@ fn has_field(size: u32, offset: usize, field_size: usize) -> bool {
 }
 
 #[no_mangle]
+/// Return a short static description for a status code.
+///
+/// The returned pointer is always valid and must not be freed by the caller.
 pub extern "C" fn read_aloud_status_string(status: ReadAloudStatus) -> *const c_char {
     static_status_message(status)
 }
 
 #[no_mangle]
+/// Return the detailed message for the last failure on the calling thread.
+///
+/// The returned pointer remains valid until the next library call on the same thread. If no error
+/// has been recorded, this function returns a pointer to an empty string.
 pub extern "C" fn read_aloud_last_error_message() -> *const c_char {
     LAST_ERROR_MESSAGE.with(|slot| {
         let slot = slot.borrow();
@@ -163,6 +181,9 @@ pub extern "C" fn read_aloud_last_error_message() -> *const c_char {
 }
 
 #[no_mangle]
+/// Fill a caller-provided options struct with library defaults and the current ABI size.
+///
+/// Returns [ReadAloudStatus::InvalidInput] if `options` is null.
 pub extern "C" fn read_aloud_speech_options_init(
     options: *mut ReadAloudSpeechOptions,
 ) -> ReadAloudStatus {
@@ -180,6 +201,11 @@ pub extern "C" fn read_aloud_speech_options_init(
 }
 
 #[no_mangle]
+/// Generate speech audio from UTF-8 `text` and write the result to `file_path`.
+///
+/// `text` and `file_path` must be non-null, NUL-terminated UTF-8 strings. `options` may be null,
+/// in which case the library uses the default pitch, rate, and volume. On failure, use
+/// [read_aloud_last_error_message] for a thread-local diagnostic message.
 pub extern "C" fn read_aloud_text_to_speech(
     text: *const c_char,
     voice: Voice,

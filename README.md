@@ -11,10 +11,14 @@ Read aloud is a low-level library that is designed as a building block for highe
 
 > This crate counterfeits the communication protocol used by Microsoft Edge to work with the Read Aloud service. **Any change to the upstream Edge service can break the crate, even if the public C ABI stays the same.** If the service updates its protocol, authentication, or required headers, the library may need internal changes to restore functionality.
 
-## Build requirements
+## Build and integration
+
+### Build requirements
 
 This library connects to the Edge read-aloud service over secure WebSockets. TLS support is currently provided by `tungstenite` with its `native-tls` feature enabled.
 
+<details>
+<summary>Linux</summary>
 On Linux, `native-tls` uses the system OpenSSL installation, so building this crate requires OpenSSL development files and `pkg-config` to be installed.
 
 For Debian or Ubuntu:
@@ -23,89 +27,51 @@ For Debian or Ubuntu:
 sudo apt-get update
 sudo apt-get install libssl-dev pkg-config
 ```
+</details>
 
+<details>
+<summary>Windows/macOS</summary>
 On Windows and macOS, `native-tls` uses the platform TLS stack instead of OpenSSL, so this Linux-specific package installation is usually not required.
+</details>
+
+### Integration
+
+#### Rust
+
+Add the crate to your Rust project:
+
+```sh
+cargo add read-aloud
+```
+
+The crate builds as a normal Rust library, so `cargo build` is enough when you only need the Rust API. For usage, see the [API Reference](#api-reference) and [Examples](#examples) sections below.
+
+#### C
+
+Build the shared library and generated header with Cargo:
+
+```sh
+cargo build --release
+```
+
+This crate is configured to produce a shared library (`cdylib`) and a Rust library (`rlib`). After a release build, the generated artifacts are placed under `target/release/` for the host platform, or under `target/<target-triple>/release/` for cross-compilation.
+
+The C integration artifacts are:
+
+- Shared library: `libread_aloud.so` on Linux, `libread_aloud.dylib` on macOS, or `read_aloud.dll` on Windows
+- Generated header: `read_aloud.h`
+
+Link the shared library from your C or C++ project and include the generated header from the same target directory.
+
+The generated header includes API comments sourced from the Rust rustdoc on the exported FFI items, so the Rust sources are the canonical reference for the C ABI.
 
 ## API
 
 The library exposes both a Rust API and a C ABI for text-to-speech generation.
 
-### Rust API
+### API Reference
 
-```rust
-use std::path::Path;
-
-use read_aloud::{text_to_speech, SpeechOptions, Voice};
-
-let options = SpeechOptions {
-    pitch_hz: 0,
-    rate: 0.0,
-    volume: 0.0,
-};
-
-text_to_speech(
-    "Hello, World!",
-    Voice::en_GB_ThomasNeural,
-    options,
-    Path::new("output.mp3"),
-)?;
-```
-
-`SpeechOptions::default()` uses the service defaults for pitch, rate, and volume.
-
-### C API
-
-The C ABI uses a size-prefixed options struct so the parameter surface can evolve without redesigning the function signature.
-
-```c
-typedef struct ReadAloudSpeechOptions {
-    uint32_t size;
-    int32_t pitch_hz;
-    float rate;
-    float volume;
-} ReadAloudSpeechOptions;
-
-// Initialize an options struct with library defaults.
-enum ReadAloudStatus read_aloud_speech_options_init(ReadAloudSpeechOptions *options);
-
-// Generate speech audio from text and save to a file. Pass NULL for default options.
-enum ReadAloudStatus read_aloud_text_to_speech(
-    const char *text,
-    enum Voice voice,
-    const ReadAloudSpeechOptions *options,
-    const char *output_path
-);
-
-// Get a short static description for a status code.
-const char *read_aloud_status_string(enum ReadAloudStatus status);
-
-// Get a detailed error message for the last failure on the calling thread.
-const char *read_aloud_last_error_message(void);
-```
-
-`read_aloud_text_to_speech` returns a numeric status code.
-
-Passing `NULL` for `options` uses the default pitch, rate, and volume.
-
-`read_aloud_speech_options_init` fills a caller-provided options struct and sets its `size` field for the current ABI.
-
-`read_aloud_status_string` returns a short static description for that code.
-
-`read_aloud_last_error_message` returns a more detailed, thread-local message describing the last failure on the calling thread. The pointer remains valid until the next library call on the same thread.
-
-### Parameters
-
-`pitch_hz` is specified in Hz.
-
-`rate` must be between `-1.0` and `1.0`, where `0.0` is the default voice speed.
-
-`volume` must be between `-1.0` and `1.0`, where `0.0` is the default voice volume.
-
-### Error codes
-
-The function returns 0 on success, and a non-zero error code on failure:
-
-[Error codes](./src/ffi.rs#L16)
+See the full API documentation at: https://docs.rs/crate/read-aloud/latest
 
 ## Supported languages and voices
 
