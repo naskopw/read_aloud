@@ -23,6 +23,7 @@
 //! ```
 
 mod ffi;
+mod sec_ms_gec;
 mod voices;
 
 use std::{
@@ -32,7 +33,6 @@ use std::{
 };
 
 use httpdate::parse_http_date;
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tungstenite::{
     client::IntoClientRequest,
@@ -77,7 +77,7 @@ mod speech_options {
 
 const TRUSTED_CLIENT_TOKEN: &str = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 const EDGE_MAJOR_VERSION: &str = "146";
-const SEC_MS_GEC_VERSION: &str = "1-146.0.3856.62";
+const SEC_MS_GEC_VERSION: &str = "2-146.0.3856.62";
 const ORIGIN_VALUE: &str = "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold";
 const ACCEPT_LANGUAGE_VALUE: &str = "en-GB,en;q=0.9,en-US;q=0.8";
 const ACCEPT_ENCODING_VALUE: &str = "gzip, deflate, br, zstd";
@@ -127,19 +127,13 @@ fn date_to_string() -> String {
     httpdate::fmt_http_date(SystemTime::now())
 }
 
-fn generate_sec_ms_gec(clock_skew_seconds: f64) -> String {
-    let mut ticks = now_unix_seconds() + clock_skew_seconds + WIN_EPOCH_SECONDS;
+fn generate_sec_ms_gec(unix_seconds: f64) -> String {
+    let mut ticks = unix_seconds + WIN_EPOCH_SECONDS;
     ticks -= ticks % 300.0;
     ticks *= 10_000_000.0;
 
     let input = format!("{ticks:.0}{TRUSTED_CLIENT_TOKEN}");
-    let digest = Sha256::digest(input.as_bytes());
-    let mut token = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        use std::fmt::Write as _;
-        let _ = write!(token, "{byte:02X}");
-    }
-    token
+    sec_ms_gec::digest(input.as_bytes())
 }
 
 fn user_agent() -> String {
@@ -150,7 +144,8 @@ fn user_agent() -> String {
 
 fn build_websocket_request(clock_skew_seconds: f64) -> Result<Request<()>> {
     let connection_id = uid();
-    let request_url = websocket_url(&connection_id, &generate_sec_ms_gec(clock_skew_seconds));
+    let token = generate_sec_ms_gec(now_unix_seconds() + clock_skew_seconds);
+    let request_url = websocket_url(&connection_id, &token);
     let mut request = request_url
         .into_client_request()
         .map_err(|error| TTSError::Connection(error.to_string()))?;
@@ -180,13 +175,6 @@ fn build_websocket_request(clock_skew_seconds: f64) -> Result<Request<()>> {
     request
         .headers_mut()
         .insert("Sec-MS-GEC-Version", SEC_MS_GEC_VERSION.parse().unwrap());
-    request.headers_mut().insert(
-        "Sec-WebSocket-Extensions",
-        "permessage-deflate; client_max_window_bits"
-            .parse()
-            .unwrap(),
-    );
-
     Ok(request)
 }
 
@@ -392,7 +380,21 @@ impl RequestBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_text;
+    use super::{generate_sec_ms_gec, sanitize_text};
+
+    #[test]
+    fn sec_ms_gec_v2_matches_reference_across_window_boundary() {
+        // Expected tokens from edge-tts's generate_sec_ms_gec_v2.
+        let window_start = 1_794_995_400.0;
+        let expected =
+            "1A5FA8F8097C9C81-9A3E1EA771F95FBF5968DDBD7ECCDB5F83AC3A01B5FF6887FCAD2A8736BE7ED7";
+        assert_eq!(generate_sec_ms_gec(window_start), expected);
+        assert_eq!(generate_sec_ms_gec(window_start + 299.0), expected);
+        assert_eq!(
+            generate_sec_ms_gec(window_start + 300.0),
+            "016B276FCA6BE9B6-28C6BBA2BEFF46B9785F8E23D167CBDFB55F18BA16DE79410284C0529B9C1D37"
+        );
+    }
 
     #[test]
     fn sanitize_text_escapes_ssml_special_characters() {

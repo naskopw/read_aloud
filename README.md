@@ -34,6 +34,21 @@ sudo apt-get install libssl-dev pkg-config
 On Windows and macOS, `native-tls` uses the platform TLS stack instead of OpenSSL, so this Linux-specific package installation is usually not required.
 </details>
 
+### Python MP3 demo
+
+Build the library and run the demo to generate and play a short trading update:
+
+```sh
+cargo build --release
+python3 examples/trading_signal.py --play
+```
+
+The audio is saved as `demo.mp3`.
+
+On Linux, `--play` uses the first available player among `ffplay`, `mpv`, and `mpg123`. The
+`READ_ALOUD_LIBRARY` environment variable can be used when the shared library is in a custom
+location.
+
 ### Integration
 
 #### Rust
@@ -230,7 +245,7 @@ lib.read_aloud_status_string.restype = ctypes.c_char_p
 lib.read_aloud_last_error_message.argtypes = []
 lib.read_aloud_last_error_message.restype = ctypes.c_char_p
 
-VOICE_EN_GB_THOMAS_NEURAL = 110
+VOICE_EN_GB_THOMAS_NEURAL = 106
 
 
 def print_error(status: int) -> None:
@@ -269,5 +284,3 @@ print("Both TTS calls succeeded.")
 ```
 
 </details>
-
-
