@@ -245,7 +245,7 @@ lib.read_aloud_status_string.restype = ctypes.c_char_p
 lib.read_aloud_last_error_message.argtypes = []
 lib.read_aloud_last_error_message.restype = ctypes.c_char_p
 
-VOICE_EN_GB_THOMAS_NEURAL = 110
+VOICE_EN_GB_THOMAS_NEURAL = 106
 
 
 def print_error(status: int) -> None:

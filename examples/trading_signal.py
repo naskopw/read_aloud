@@ -23,7 +23,7 @@ DEFAULT_SIGNAL = (
 )
 
 # The enum value is generated from src/voices.rs. It is also documented in README.md.
-VOICE_EN_GB_THOMAS_NEURAL = 110
+VOICE_EN_GB_THOMAS_NEURAL = 106
 READ_ALOUD_STATUS_SUCCESS = 0
 
 
